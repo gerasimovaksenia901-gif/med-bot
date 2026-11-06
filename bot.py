@@ -1,4 +1,3 @@
-import asyncio
 import os
 import logging
 from aiohttp import web
@@ -179,7 +178,7 @@ async def back_to_main(callback: CallbackQuery):
 async def ignore_button(callback: CallbackQuery):
     await callback.answer("Для этого симптома данная форма выпуска не применяется.", show_alert=True)
 
-# ========== НАСТРОЙКА WEBHOOK ==========
+# ========== ЗАПУСК ВЕБХУКА (ИСПРАВЛЕННЫЙ БЛОК) ==========
 async def on_startup(bot: Bot):
     webhook_url = f"{BASE_WEBHOOK_URL}{WEBHOOK_PATH}"
     await bot.set_webhook(webhook_url)
