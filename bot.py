@@ -10,7 +10,6 @@ from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_applicati
 
 # ========== НАСТРОЙКИ ==========
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-# Render автоматически передает свой адрес в переменную RENDER_EXTERNAL_URL
 BASE_WEBHOOK_URL = os.getenv("RENDER_EXTERNAL_URL", "https://med-bot-service.onrender.com")
 WEBHOOK_PATH = "/webhook"
 
@@ -20,7 +19,6 @@ dp = Dispatcher()
 
 # ========== ДАННЫЕ О ПРЕПАРАТАХ ==========
 DRUGS = {
-    # --- Обезболивающее ---
     "ketorolac": {
         "name": "Кеторолак (Кетанов)",
         "desc": "От чего: сильная боль (зубная, мышечная, послеоперационная).\n"
@@ -45,7 +43,6 @@ DRUGS = {
                 "Рецепт: Нет.\n"
                 "Противопоказания: печёночная недостаточность, алкоголизм, дефицит глюкозо-6-фосфатдегидрогеназы."
     },
-    # --- Боль в горле ---
     "septolete": {
         "name": "Септолете Тотал",
         "desc": "От чего: боль в горле, воспаление, инфекции полости рта.\n"
@@ -54,7 +51,6 @@ DRUGS = {
                 "Рецепт: Нет.\n"
                 "Противопоказания: дети до 6 лет, индивидуальная непереносимость компонентов."
     },
-    # --- Давление ---
     "lisinopril": {
         "name": "Лизиноприл",
         "desc": "От чего: повышенное артериальное давление.\n"
@@ -63,7 +59,6 @@ DRUGS = {
                 "Рецепт: Да (строго по рецепту!).\n"
                 "Противопоказания: ангионевротический отек в анамнезе, беременность, стеноз почечных артерий."
     },
-    # --- Отравление ---
     "activated_charcoal": {
         "name": "Активированный уголь",
         "desc": "От чего: отравления, интоксикации.\n"
@@ -80,7 +75,6 @@ DRUGS = {
                 "Рецепт: Нет.\n"
                 "Противопоказания: кишечная непроходимость."
     },
-    # --- Мышечная боль ---
     "diclofenac_gel": {
         "name": "Диклофенак (гель)",
         "desc": "От чего: мышечная боль, растяжения, ушибы.\n"
@@ -185,9 +179,8 @@ async def back_to_main(callback: CallbackQuery):
 async def ignore_button(callback: CallbackQuery):
     await callback.answer("Для этого симптома данная форма выпуска не применяется.", show_alert=True)
 
-# ========== НАСТРОЙКА WEBHOOK (ИСПРАВЛЕНО) ==========
+# ========== НАСТРОЙКА WEBHOOK ==========
 async def on_startup(bot: Bot):
-    # Устанавливаем вебхук именно для объекта bot (а не для приложения!)
     webhook_url = f"{BASE_WEBHOOK_URL}{WEBHOOK_PATH}"
     await bot.set_webhook(webhook_url)
     logging.info(f"Webhook успешно установлен на {webhook_url}")
@@ -199,19 +192,16 @@ async def on_shutdown(bot: Bot):
 def main():
     app = web.Application()
     
-    # Регистрируем обработчик вебхука
     webhook_requests_handler = SimpleRequestHandler(
         dispatcher=dp,
         bot=bot,
     )
     webhook_requests_handler.register(app, path=WEBHOOK_PATH)
     
-    # Подключаем startup и shutdown события
     setup_application(app, dp, bot=bot)
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)
     
-    # Запускаем сервер на порту, который требует Render
     port = int(os.environ.get("PORT", 8080))
     web.run_app(app, host="0.0.0.0", port=port)
 
