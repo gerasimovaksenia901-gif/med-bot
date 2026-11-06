@@ -8,9 +8,7 @@ from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 # ========== НАСТРОЙКИ ==========
-# Токен берётся из переменной окружения BOT_TOKEN (на Render вы её зададите)
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-
 logging.basicConfig(level=logging.INFO)
 
 bot = Bot(token=BOT_TOKEN)
@@ -51,7 +49,15 @@ DRUGS = {
                 "Рецепт: Нет.\n"
                 "Противопоказания: дети до 6 лет, индивидуальная непереносимость компонентов."
     },
-    # Добавьте остальные препараты аналогично
+    # Пример препарата для категории, которая раньше была пустой
+    "lisinopril": {
+        "name": "Лизиноприл",
+        "desc": "От чего: повышенное артериальное давление.\n"
+                "Дозировка: Назначается индивидуально врачом (обычно 5-10 мг/сут).\n"
+                "Цена: ~50-150 руб.\n"
+                "Рецепт: Да (строго по рецепту!).\n"
+                "Противопоказания: ангионевротический отек в анамнезе, беременность, стеноз почечных артерий."
+    }
 }
 
 # ========== КЛАВИАТУРЫ ==========
@@ -93,17 +99,24 @@ def drug_menu(form_key):
         "form_throat_tab": ["septolete"],
         "form_throat_spray": ["septolete"],
         "form_muscle_tab": ["ibuprofen", "ketorolac"],
-        "form_muscle_gel": [],
-        "form_poison_tab": [],
-        "form_bp_tab": [],
-        "form_orvi_syr": [],
-        "form_orvi_spray": [],
-        "form_poison_sol": [],
+        "form_muscle_gel": [], # Здесь пока пусто
+        "form_poison_tab": [], # Здесь пока пусто
+        "form_bp_tab": ["lisinopril"], # Добавили препарат
+        "form_orvi_syr": [], # Здесь пока пусто
+        "form_orvi_spray": [], # Здесь пока пусто
+        "form_poison_sol": [], # Здесь пока пусто
     }.get(form_key, [])
+    
     builder = InlineKeyboardBuilder()
-    for drug_id in mapping:
-        if drug_id in DRUGS:
-            builder.add(InlineKeyboardButton(text=DRUGS[drug_id]["name"], callback_data=f"drug_{drug_id}"))
+    
+    # Если препаратов нет, показываем кнопку-заглушку
+    if not mapping:
+        builder.add(InlineKeyboardButton(text="❌ В этой категории пока нет препаратов", callback_data="ignore"))
+    else:
+        for drug_id in mapping:
+            if drug_id in DRUGS:
+                builder.add(InlineKeyboardButton(text=DRUGS[drug_id]["name"], callback_data=f"drug_{drug_id}"))
+                
     builder.add(InlineKeyboardButton(text="🔙 Назад", callback_data="back_main"))
     builder.adjust(1)
     return builder.as_markup()
@@ -138,12 +151,16 @@ async def back_to_main(callback: CallbackQuery):
     await callback.message.edit_text("Выберите симптом:", reply_markup=main_menu())
     await callback.answer()
 
+# Обработчик для пустой кнопки (чтобы бот не зависал)
+@dp.callback_query(F.data == "ignore")
+async def ignore_button(callback: CallbackQuery):
+    await callback.answer("Для этого симптома данная форма выпуска не применяется.", show_alert=True)
+
 # ========== ВЕБ-СЕРВЕР ДЛЯ RENDER ==========
 async def handle_web(request):
     return web.Response(text="OK")
 
 async def main():
-    # Запускаем мини-веб-сервер параллельно с ботом (нужен для Render)
     app = web.Application()
     app.router.add_get("/", handle_web)
     runner = web.AppRunner(app)
@@ -153,7 +170,6 @@ async def main():
     await site.start()
     logging.info(f"Web server started on port {port}")
 
-    # Запускаем самого бота
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
