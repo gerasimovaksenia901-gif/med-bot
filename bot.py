@@ -1,3 +1,4 @@
+import asyncio
 import os
 import logging
 from aiohttp import web
@@ -5,13 +6,9 @@ from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 
 # ========== НАСТРОЙКИ ==========
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-BASE_WEBHOOK_URL = os.getenv("RENDER_EXTERNAL_URL", "https://med-bot-service.onrender.com")
-WEBHOOK_PATH = "/webhook"
-
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
@@ -178,31 +175,27 @@ async def back_to_main(callback: CallbackQuery):
 async def ignore_button(callback: CallbackQuery):
     await callback.answer("Для этого симптома данная форма выпуска не применяется.", show_alert=True)
 
-# ========== ЗАПУСК ВЕБХУКА (ИСПРАВЛЕННЫЙ БЛОК) ==========
-async def on_startup(bot: Bot):
-    webhook_url = f"{BASE_WEBHOOK_URL}{WEBHOOK_PATH}"
-    await bot.set_webhook(webhook_url)
-    logging.info(f"Webhook успешно установлен на {webhook_url}")
+# ========== ВЕБ-ЗАГЛУШКА ДЛЯ RENDER (чтобы сервис не падал) ==========
+async def handle_web(request):
+    return web.Response(text="OK")
 
-async def on_shutdown(bot: Bot):
-    await bot.delete_webhook()
-    logging.info("Webhook удален")
-
-def main():
+async def main():
+    # 1. Запускаем мини-сайт для Render
     app = web.Application()
-    
-    webhook_requests_handler = SimpleRequestHandler(
-        dispatcher=dp,
-        bot=bot,
-    )
-    webhook_requests_handler.register(app, path=WEBHOOK_PATH)
-    
-    setup_application(app, dp, bot=bot)
-    app.on_startup.append(on_startup)
-    app.on_shutdown.append(on_shutdown)
-    
+    app.router.add_get("/", handle_web)
+    runner = web.AppRunner(app)
+    await runner.setup()
     port = int(os.environ.get("PORT", 8080))
-    web.run_app(app, host="0.0.0.0", port=port)
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    logging.info(f"Веб-сервер запущен на порту {port}")
+
+    # 2. Принудительно удаляем старый вебхук из Telegram (чтобы не было конфликтов)
+    await bot.delete_webhook(drop_pending_updates=True)
+    
+    # 3. Запускаем бота в режиме опроса (Polling)
+    logging.info("Бот запущен в режиме Polling")
+    await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
