@@ -185,33 +185,33 @@ async def back_to_main(callback: CallbackQuery):
 async def ignore_button(callback: CallbackQuery):
     await callback.answer("Для этого симптома данная форма выпуска не применяется.", show_alert=True)
 
-# ========== НАСТРОЙКА WEBHOOK ==========
+# ========== НАСТРОЙКА WEBHOOK (ИСПРАВЛЕНО) ==========
 async def on_startup(bot: Bot):
-    # Сообщаем Telegram, куда отправлять сообщения
-    await bot.set_webhook(f"{BASE_WEBHOOK_URL}{WEBHOOK_PATH}")
-    logging.info(f"Webhook установлен на {BASE_WEBHOOK_URL}{WEBHOOK_PATH}")
+    # Устанавливаем вебхук именно для объекта bot (а не для приложения!)
+    webhook_url = f"{BASE_WEBHOOK_URL}{WEBHOOK_PATH}"
+    await bot.set_webhook(webhook_url)
+    logging.info(f"Webhook успешно установлен на {webhook_url}")
 
 async def on_shutdown(bot: Bot):
-    # Удаляем webhook при выключении
     await bot.delete_webhook()
     logging.info("Webhook удален")
 
 def main():
     app = web.Application()
     
-    # Настраиваем обработчик вебхука
+    # Регистрируем обработчик вебхука
     webhook_requests_handler = SimpleRequestHandler(
         dispatcher=dp,
         bot=bot,
     )
     webhook_requests_handler.register(app, path=WEBHOOK_PATH)
     
-    # Добавляем функции запуска/остановки
+    # Подключаем startup и shutdown события
     setup_application(app, dp, bot=bot)
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)
     
-    # Запускаем сервер
+    # Запускаем сервер на порту, который требует Render
     port = int(os.environ.get("PORT", 8080))
     web.run_app(app, host="0.0.0.0", port=port)
 
